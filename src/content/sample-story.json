@@ -1,0 +1,74 @@
+{
+  "startSectionId": "intro",
+  "sections": {
+    "intro": {
+      "id": "intro",
+      "title": "The Road",
+      "text": "You wake at the edge of the wilds with a small pack and a long road ahead.",
+      "onEnterEffects": [
+        { "type": "addItem", "itemId": "torch" },
+        { "type": "changeGold", "amount": 3 }
+      ],
+      "choices": [
+        {
+          "id": "enter-forest",
+          "text": "Take the forest path",
+          "targetSectionId": "forest"
+        },
+        {
+          "id": "visit-shrine",
+          "text": "Visit the old shrine",
+          "targetSectionId": "shrine",
+          "conditions": [{ "type": "hasItem", "itemId": "torch" }]
+        }
+      ]
+    },
+    "forest": {
+      "id": "forest",
+      "title": "The Forest",
+      "text": "The trees close around you. Something moves in the undergrowth.",
+      "onEnterEffects": [{ "type": "changeHealth", "amount": -1 }],
+      "choices": [
+        {
+          "id": "press-on",
+          "text": "Press deeper into the woods",
+          "targetSectionId": "clearing"
+        },
+        {
+          "id": "retreat",
+          "text": "Return to the road",
+          "targetSectionId": "intro"
+        }
+      ]
+    },
+    "shrine": {
+      "id": "shrine",
+      "title": "The Shrine",
+      "text": "A cracked altar stands in silence. A simple blessing awaits those who know how to ask.",
+      "choices": [
+        {
+          "id": "pray",
+          "text": "Pray at the altar",
+          "targetSectionId": "forest",
+          "effects": [
+            { "type": "changeHealth", "amount": 2 },
+            { "type": "setFlag", "flag": "blessed", "value": true }
+          ]
+        }
+      ]
+    },
+    "clearing": {
+      "id": "clearing",
+      "title": "Hidden Clearing",
+      "text": "You find a quiet clearing and a path onward.",
+      "choices": [
+        {
+          "id": "rest",
+          "text": "Rest briefly",
+          "targetSectionId": "intro",
+          "effects": [{ "type": "changeHealth", "amount": 1 }]
+        }
+      ]
+    }
+  }
+}
