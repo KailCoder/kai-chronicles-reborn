@@ -1,17 +1,22 @@
-import type { GameState, Story } from './types';
+import type { CombatConfig, GameState, Story } from './types';
 import { applyEffects, enterSection } from './engine';
 import { autoResolve, stepCombat } from './combat_engine';
 
 type RandomSource = () => number;
 
-export function resolveCombatEncounter(story: Story, state: GameState, random: RandomSource = Math.random): GameState {
+export function resolveCombatEncounter(
+  story: Story,
+  state: GameState,
+  random: RandomSource = Math.random,
+  config: CombatConfig = {},
+): GameState {
   if (!state.activeCombat) {
     throw new Error('No active combat to resolve.');
   }
 
   const active = state.activeCombat;
 
-  const result = autoResolve(active, state.player, random);
+  const result = autoResolve(active, state.player, random, config);
 
   // update player in the game state
   const updatedPlayer = {
@@ -33,13 +38,18 @@ export function resolveCombatEncounter(story: Story, state: GameState, random: R
   return enterSection(story, clearedCombatState, active.event.defeatTarget).state;
 }
 
-export function stepCombatEncounter(story: Story, state: GameState, random: RandomSource = Math.random): GameState {
+export function stepCombatEncounter(
+  story: Story,
+  state: GameState,
+  random: RandomSource = Math.random,
+  config: CombatConfig = {},
+): GameState {
   if (!state.activeCombat) {
     throw new Error('No active combat to step.');
   }
 
   const active = state.activeCombat;
-  const step = stepCombat(active, state.player, random);
+  const step = stepCombat(active, state.player, random, config);
 
   // update transient player currentEndurance and active combat
   const interimState: GameState = {

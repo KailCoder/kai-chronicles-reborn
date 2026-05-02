@@ -1,3 +1,5 @@
+import type { BlindRandomState, RandomMode } from './random';
+
 export type SectionId = string | number;
 export type ItemId = string;
 export type SkillId = string;
@@ -53,9 +55,8 @@ export interface CombatEvent {
   rewardEffects?: Effect[];
 }
 
-export type SectionEvent = CombatEvent;
-
-export interface Section {
+export interface NarrativeSection {
+  type?: 'story';
   id: SectionId;
   title?: string;
   text: string[];
@@ -63,6 +64,20 @@ export interface Section {
   choices: Choice[];
   events?: SectionEvent[];
 }
+
+export interface RandomCheckSection {
+  type: 'random_check';
+  id: SectionId;
+  title?: string;
+  text: string[];
+  prompt: string;
+  outcomes: Record<string, SectionId>;
+  effects?: Effect[];
+}
+
+export type SectionEvent = CombatEvent;
+
+export type Section = NarrativeSection | RandomCheckSection;
 
 export interface Story {
   id?: string;
@@ -100,14 +115,34 @@ export interface ActiveCombatState {
   history: CombatRound[];
 }
 
+export interface ActiveRandomCheckState {
+  sectionId: SectionId;
+  prompt: string;
+  outcomes: Record<string, SectionId>;
+  board: BlindRandomState;
+  selectedIndex: number | null;
+  selectedValue: number | null;
+  isRevealed: boolean;
+}
+
 export interface CombatConfig {
   damagePerHit?: number; // default 2
   randomSeed?: number | string; // optional seed for deterministic RNG in tests
+  randomMode?: RandomMode;
+  blindRandomState?: BlindRandomState;
+}
+
+export interface CombatStepResult {
+  active: ActiveCombatState;
+  player: PlayerState;
+  finished: boolean;
+  blindRandomState?: BlindRandomState;
 }
 
 export interface CombatResult {
   outcome: 'victory' | 'defeat';
-  finalState: GameState;
+  finalPlayer: PlayerState;
+  enemyEndurance: number;
   history: CombatRound[];
 }
 
@@ -116,6 +151,7 @@ export interface GameState {
   player: PlayerState;
   visitedSectionIds: SectionId[];
   activeCombat: ActiveCombatState | null;
+  activeRandomCheck: ActiveRandomCheckState | null;
 }
 
 export interface EnterSectionResult {

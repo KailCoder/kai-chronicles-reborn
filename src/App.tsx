@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import introFlowData from './content/lobo1-intro.json';
 import storyData from './content/lobo1.json';
-import { choose, getAvailableChoices } from './game/engine';
+import BlindRandomPanel from './components/BlindRandomPanel';
+import RandomCheckPanel from './components/RandomCheckPanel';
+import { choose, enterSection, getAvailableChoices } from './game/engine';
 import { resolveCombatEncounter, stepCombatEncounter } from './game/combat';
 import { clearGameState, loadGameState, saveGameState } from './game/persistence';
+import { validateStory } from './game/validation';
+import type { RandomMode } from './game/random';
+import { resolveRandomCheck } from './game/random_resolution';
 import {
   advanceIntro,
   createIntroSession,
@@ -19,6 +24,12 @@ const story = storyData as Story;
 const introFlow = introFlowData as IntroFlow;
 const bookId = introFlow.bookId;
 const storyTitle = 'Flight from the Dark';
+const storyValidation = validateStory(story);
+
+if (!storyValidation.valid) {
+  throw new Error(`Invalid story data: ${storyValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; ')}`);
+}
+
 const defaultPlayer: PlayerState = {
   combatSkill: 9,
   endurance: 10,
@@ -44,6 +55,7 @@ function getStorySection(state: SessionState) {
 export default function App() {
   const [state, setState] = useState<SessionState>(() => createNewRun());
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
+  const [randomMode, setRandomMode] = useState<RandomMode>('classic');
 
   const currentIntroStep = state.phase === 'intro' ? getCurrentIntroStep(state, introFlow) : null;
   const currentSection = getStorySection(state);
@@ -56,6 +68,7 @@ export default function App() {
   }, [currentSection, state]);
 
   const activeCombat = state.phase === 'playing' ? state.gameState?.activeCombat ?? null : null;
+  const activeRandomCheck = state.phase === 'playing' ? state.gameState?.activeRandomCheck ?? null : null;
 
   useEffect(() => {
     const savedGame = loadGameState(bookId);
@@ -97,13 +110,26 @@ export default function App() {
     setLoadedAt(null);
   }
 
+  function handleRandomCheckResolve(value: number) {
+    setState((currentState) => {
+      if (currentState.phase !== 'playing' || !currentState.gameState?.activeRandomCheck) {
+        return currentState;
+      }
+
+      const targetSectionId = resolveRandomCheck(currentState.gameState.activeRandomCheck.outcomes, value);
+      const nextGameState = enterSection(story, currentState.gameState, targetSectionId).state;
+      return syncPlayingSession(currentState, nextGameState);
+    });
+    setLoadedAt(null);
+  }
+
   function handleResolveCombat() {
     setState((currentState) => {
       if (currentState.phase !== 'playing' || !currentState.gameState) {
         return currentState;
       }
 
-      const nextGameState = resolveCombatEncounter(story, currentState.gameState);
+      const nextGameState = resolveCombatEncounter(story, currentState.gameState, Math.random, { randomMode });
       return syncPlayingSession(currentState, nextGameState);
     });
     setLoadedAt(null);
@@ -115,7 +141,7 @@ export default function App() {
         return currentState;
       }
 
-      const nextGameState = stepCombatEncounter(story, currentState.gameState);
+      const nextGameState = stepCombatEncounter(story, currentState.gameState, Math.random, { randomMode });
       return syncPlayingSession(currentState, nextGameState);
     });
     setLoadedAt(null);
@@ -241,6 +267,10 @@ export default function App() {
                   ))}
                 </div>
 
+                {activeRandomCheck ? (
+                  <RandomCheckPanel prompt={activeRandomCheck.prompt} onResolve={handleRandomCheckResolve} />
+                ) : null}
+
                 {activeCombat ? (
                   <section className="combat-card">
                     <h3>Combat</h3>
@@ -286,7 +316,7 @@ export default function App() {
                   </section>
                 ) : null}
 
-                {!activeCombat ? (
+                {!activeCombat && !activeRandomCheck ? (
                   <div className="choice-list">
                     {availableChoices.map((choice) => {
                       const choiceId = choice.id ?? choice.text;
@@ -378,6 +408,31 @@ export default function App() {
                 {loadedAt ? `Loaded from ${new Date(loadedAt).toLocaleString()}` : 'Autosaved locally in the browser.'}
               </p>
             </section>
+
+            <section className="stat-card">
+              <h3>Random Mode</h3>
+              <div className="mode-toggle">
+                <button
+                  type="button"
+                  className={`button button-secondary${randomMode === 'classic' ? ' is-active' : ''}`}
+                  onClick={() => setRandomMode('classic')}
+                >
+                  Classic
+                </button>
+                <button
+                  type="button"
+                  className={`button button-secondary${randomMode === 'fast' ? ' is-active' : ''}`}
+                  onClick={() => setRandomMode('fast')}
+                >
+                  Fast
+                </button>
+              </div>
+              <p className="muted">
+                Classic uses the blind selection ritual; fast uses direct number generation.
+              </p>
+            </section>
+
+            <BlindRandomPanel />
           </aside>
         </section>
       </main>

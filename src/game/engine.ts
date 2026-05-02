@@ -10,6 +10,7 @@ import {
   Requirement,
   Story,
 } from './types';
+import { startRandomCheck, type RandomResolutionConfig } from './random_resolution';
 
 export function createInitialState(startSectionId: SectionId, player: PlayerState): GameState {
   return {
@@ -22,6 +23,7 @@ export function createInitialState(startSectionId: SectionId, player: PlayerStat
     },
     visitedSectionIds: [],
     activeCombat: null,
+    activeRandomCheck: null,
   };
 }
 
@@ -90,7 +92,7 @@ export function canUseChoice(state: GameState, choice: Choice): boolean {
 }
 
 export function getAvailableChoices(section: Section, state: GameState): Choice[] {
-  if (state.activeCombat) {
+  if (state.activeCombat || state.activeRandomCheck || section.type === 'random_check') {
     return [];
   }
 
@@ -103,7 +105,22 @@ export function enterSection(story: Story, state: GameState, sectionId: SectionI
   const nextState = {
     ...afterEffects,
     activeCombat: null,
+    activeRandomCheck: null,
   };
+
+  if (section.type === 'random_check') {
+    return {
+      section,
+      state: {
+        ...nextState,
+        currentSectionId: sectionId,
+        activeRandomCheck: startRandomCheck(section, {}),
+        visitedSectionIds: state.visitedSectionIds.includes(sectionId)
+          ? state.visitedSectionIds
+          : [...state.visitedSectionIds, sectionId],
+      },
+    };
+  }
 
   const combatEvent = section.events?.find((event): event is Extract<(typeof section.events)[number], { type: 'combat' }> => event.type === 'combat');
   const withCombat = combatEvent
@@ -131,7 +148,15 @@ export function enterSection(story: Story, state: GameState, sectionId: SectionI
 }
 
 export function choose(story: Story, state: GameState, choiceId: string): ChoiceResult {
+  if (state.activeRandomCheck) {
+    throw new Error('Cannot choose a story option while a random check is active.');
+  }
+
   const section = getSection(story, state.currentSectionId);
+  if (section.type === 'random_check') {
+    throw new Error('Random-check sections do not use story choices.');
+  }
+
   const choice = section.choices.find((candidate) => candidate.id === choiceId);
 
   if (!choice) {

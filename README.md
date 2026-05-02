@@ -78,9 +78,18 @@ Run these checks before making changes:
 ```bash
 npm run typecheck
 npm run build
+npm test
 ```
 
 For a visual smoke test, run the app with `npm run dev`, open the browser, and click through at least one branch. The current sample story should show the forest path changing health and the shrine branch restoring health and setting the `blessed` flag.
+
+### 7. Stabilization checks
+
+The current stabilization layer adds three guardrails:
+
+1. Combat tests cover deterministic win, loss, tie, and zero-endurance cases.
+2. State-machine tests cover intro setup, combat transitions, and save/load consistency.
+3. Story validation runs at app startup so broken content fails fast instead of crashing later during play.
 
 ## Project structure
 

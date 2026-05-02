@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "simulate:combat": "tsx scripts/simulate_combat.ts",
     "import:projectaon": "tsx scripts/import_projectaon.ts",
     "download:projectaon": "tsx scripts/download_projectaon.ts"
@@ -17,15 +19,16 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/node": "^22.15.3",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@types/node": "^22.15.3",
     "@vitejs/plugin-react": "^4.5.1",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5",
     "cheerio": "^1.0.0-rc.12",
     "ts-node": "^10.9.1",
     "tsx": "^4.19.3",
-    "unzipper": "^0.12.3"
+    "typescript": "^5.8.3",
+    "unzipper": "^0.12.3",
+    "vite": "^6.3.5",
+    "vitest": "^2.1.9"
   }
 }

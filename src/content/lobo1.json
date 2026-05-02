@@ -12,8 +12,8 @@
       "choices": [
         {
           "id": "choice-1-1",
-          "text": "If you wish to use your Kai Discipline of Sixth Sense, turn to 141.",
-          "target": 141
+          "text": "If you wish to test your fate with the blind selection ritual, turn to 997.",
+          "target": 997
         },
         {
           "id": "choice-1-2",
@@ -6538,6 +6538,29 @@
       "choices": [],
       "effects": [],
       "events": []
+    },
+    "997": {
+      "id": 997,
+      "type": "random_check",
+      "title": "Blind Fate",
+      "text": [
+        "A strange Kai omen demands a blind choice.",
+        "Select one hidden slot and let fate decide where the road goes next."
+      ],
+      "prompt": "Choose a hidden number and discover your fate",
+      "outcomes": {
+        "0": 85,
+        "1": 141,
+        "2": 275,
+        "3": 85,
+        "4": 141,
+        "5": 275,
+        "6": 85,
+        "7": 141,
+        "8": 275,
+        "9": 85
+      },
+      "effects": []
     }
   }
 }
