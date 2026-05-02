@@ -1,0 +1,105 @@
+{
+  "bookId": "book1",
+  "steps": [
+    {
+      "id": "dedication",
+      "kind": "text",
+      "title": "Dedication",
+      "paragraphs": [
+        "To Mel and Yin"
+      ],
+      "continueLabel": "Continue"
+    },
+    {
+      "id": "kai-training",
+      "kind": "text",
+      "title": "Levels of Kai Training",
+      "paragraphs": [
+        "You begin your adventure as an Initiate of the Kai. As you survive each mission, your training will grow and your rank will rise.",
+        "The Kai path is long: novice, acolyte, initiate, guardian, savant, and beyond. Every book is a step toward greater mastery."
+      ],
+      "continueLabel": "Continue"
+    },
+    {
+      "id": "kai-disciplines",
+      "kind": "text",
+      "title": "Kai Disciplines",
+      "paragraphs": [
+        "Choose five Kai Disciplines before the story begins. These skills shape how you survive the road ahead.",
+        "You can select, review, and change your choices during this setup phase before entering the first playable section."
+      ],
+      "continueLabel": "Choose Disciplines"
+    },
+    {
+      "id": "choose-skills",
+      "kind": "skill_selection",
+      "title": "Select Your Five Kai Disciplines",
+      "paragraphs": [
+        "Pick exactly five skills. The app will carry them into the adventure and use them during checks and story choices."
+      ],
+      "requiredSelections": 5,
+      "options": [
+        {
+          "id": "Camouflage",
+          "label": "Camouflage",
+          "description": "Blend into your surroundings and move unseen."
+        },
+        {
+          "id": "Hunting",
+          "label": "Hunting",
+          "description": "Find food and move stealthily in the wild."
+        },
+        {
+          "id": "Sixth Sense",
+          "label": "Sixth Sense",
+          "description": "Feel danger or hidden intent before it strikes."
+        },
+        {
+          "id": "Tracking",
+          "label": "Tracking",
+          "description": "Read tracks and choose the correct route."
+        },
+        {
+          "id": "Healing",
+          "label": "Healing",
+          "description": "Recover endurance between moments of combat."
+        },
+        {
+          "id": "Weaponskill",
+          "label": "Weaponskill",
+          "description": "Master a weapon and strike more effectively."
+        },
+        {
+          "id": "Mindshield",
+          "label": "Mindshield",
+          "description": "Resist mind attacks from enemies."
+        },
+        {
+          "id": "Mindblast",
+          "label": "Mindblast",
+          "description": "Attack with the force of your mind."
+        },
+        {
+          "id": "Animal Kinship",
+          "label": "Animal Kinship",
+          "description": "Understand animals and their intentions."
+        },
+        {
+          "id": "Mind Over Matter",
+          "label": "Mind Over Matter",
+          "description": "Move small objects with focused concentration."
+        }
+      ],
+      "continueLabel": "Continue"
+    },
+    {
+      "id": "begin-adventure",
+      "kind": "confirm",
+      "title": "Begin the Adventure",
+      "paragraphs": [
+        "Your Kai training is set. The monastery lies in ruins, and the journey to Holmgard begins now."
+      ],
+      "continueLabel": "Start Book 1"
+    }
+  ]
+}

@@ -1,33 +1,64 @@
 import { useEffect, useMemo, useState } from 'react';
-import storyData from './content/sample-story.json';
-import { choose, getAvailableChoices, startStory } from './game/engine';
+import introFlowData from './content/lobo1-intro.json';
+import storyData from './content/lobo1.json';
+import { choose, getAvailableChoices } from './game/engine';
+import { resolveCombatEncounter, stepCombatEncounter } from './game/combat';
 import { clearGameState, loadGameState, saveGameState } from './game/persistence';
-import type { GameState, PlayerState, Story } from './game/types';
+import {
+  advanceIntro,
+  createIntroSession,
+  getCurrentIntroStep,
+  syncPlayingSession,
+  toggleIntroSkill,
+  type IntroFlow,
+  type SessionState,
+} from './game/flow';
+import type { PlayerState, Story } from './game/types';
 
 const story = storyData as Story;
+const introFlow = introFlowData as IntroFlow;
+const bookId = introFlow.bookId;
+const storyTitle = 'Flight from the Dark';
 const defaultPlayer: PlayerState = {
-  health: 10,
-  maxHealth: 10,
   combatSkill: 9,
+  endurance: 10,
+  maxEndurance: 10,
   gold: 0,
   inventory: [],
-  skills: ['kai-influence'],
+  skills: [],
   flags: {},
 };
 
-function createNewRun(): GameState {
-  return startStory(story, defaultPlayer).state;
+function createNewRun(): SessionState {
+  return createIntroSession(bookId, defaultPlayer);
+}
+
+function getStorySection(state: SessionState) {
+  if (state.phase !== 'playing' || !state.gameState) {
+    return null;
+  }
+
+  return story.sections[String(state.gameState.currentSectionId)];
 }
 
 export default function App() {
-  const [state, setState] = useState<GameState>(() => createNewRun());
+  const [state, setState] = useState<SessionState>(() => createNewRun());
   const [loadedAt, setLoadedAt] = useState<string | null>(null);
 
-  const currentSection = story.sections[state.currentSectionId];
-  const availableChoices = useMemo(() => getAvailableChoices(currentSection, state), [currentSection, state]);
+  const currentIntroStep = state.phase === 'intro' ? getCurrentIntroStep(state, introFlow) : null;
+  const currentSection = getStorySection(state);
+  const availableChoices = useMemo(() => {
+    if (!currentSection || state.phase !== 'playing' || !state.gameState) {
+      return [];
+    }
+
+    return getAvailableChoices(currentSection, state.gameState);
+  }, [currentSection, state]);
+
+  const activeCombat = state.phase === 'playing' ? state.gameState?.activeCombat ?? null : null;
 
   useEffect(() => {
-    const savedGame = loadGameState();
+    const savedGame = loadGameState(bookId);
 
     if (savedGame) {
       setState(savedGame.state);
@@ -37,15 +68,56 @@ export default function App() {
 
     const initialState = createNewRun();
     setState(initialState);
-    saveGameState(initialState);
+    saveGameState(initialState, bookId);
   }, []);
 
   useEffect(() => {
-    saveGameState(state);
+    saveGameState(state, bookId);
   }, [state]);
 
+  function handleIntroSkillToggle(skillId: string) {
+    setState((currentState) => toggleIntroSkill(currentState, skillId, introFlow));
+    setLoadedAt(null);
+  }
+
+  function handleIntroContinue() {
+    setState((currentState) => advanceIntro(currentState, introFlow, story));
+    setLoadedAt(null);
+  }
+
   function handleChoice(choiceId: string) {
-    setState((currentState) => choose(story, currentState, choiceId).state);
+    setState((currentState) => {
+      if (currentState.phase !== 'playing' || !currentState.gameState) {
+        return currentState;
+      }
+
+      const nextGameState = choose(story, currentState.gameState, choiceId).state;
+      return syncPlayingSession(currentState, nextGameState);
+    });
+    setLoadedAt(null);
+  }
+
+  function handleResolveCombat() {
+    setState((currentState) => {
+      if (currentState.phase !== 'playing' || !currentState.gameState) {
+        return currentState;
+      }
+
+      const nextGameState = resolveCombatEncounter(story, currentState.gameState);
+      return syncPlayingSession(currentState, nextGameState);
+    });
+    setLoadedAt(null);
+  }
+
+  function handleStepCombat() {
+    setState((currentState) => {
+      if (currentState.phase !== 'playing' || !currentState.gameState) {
+        return currentState;
+      }
+
+      const nextGameState = stepCombatEncounter(story, currentState.gameState);
+      return syncPlayingSession(currentState, nextGameState);
+    });
     setLoadedAt(null);
   }
 
@@ -53,12 +125,15 @@ export default function App() {
     const nextState = createNewRun();
     setState(nextState);
     setLoadedAt(null);
-    saveGameState(nextState);
+    saveGameState(nextState, bookId);
   }
 
   function handleClearSave() {
     clearGameState();
+    const nextState = createNewRun();
+    setState(nextState);
     setLoadedAt(null);
+    saveGameState(nextState, bookId);
   }
 
   const inventory = state.player.inventory.length > 0 ? state.player.inventory : ['None'];
@@ -66,7 +141,7 @@ export default function App() {
   const flagEntries = Object.entries(state.player.flags);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell phase-${state.phase}`}>
       <div className="background-glow background-glow-left" />
       <div className="background-glow background-glow-right" />
 
@@ -74,9 +149,11 @@ export default function App() {
         <header className="hero">
           <div>
             <p className="eyebrow">Version 0.1.0</p>
-            <h1>Kai Chronicles Reborn</h1>
+            <h1>{storyTitle}</h1>
             <p className="hero-copy">
-              A modular gamebook engine with story data, player state, choices, and save slots kept deliberately small.
+              {state.phase === 'intro'
+                ? 'Book 1 now opens with a reusable intro flow for story setup and Kai Discipline selection.'
+                : 'The intro is complete. The gamebook engine is now in section-based play mode.'}
             </p>
           </div>
 
@@ -91,32 +168,149 @@ export default function App() {
         </header>
 
         <section className="playfield">
-          <article className="story-panel">
+          <article key={state.phase} className={`story-panel phase-panel phase-panel-${state.phase}`}>
             <div className="story-meta">
-              <span>{currentSection.title ?? 'Untitled section'}</span>
-              <span>{state.currentSectionId}</span>
+              {state.phase === 'intro' && currentIntroStep ? (
+                <>
+                  <span>Introduction</span>
+                  <span>{currentIntroStep.id}</span>
+                </>
+              ) : (
+                <>
+                  <span>{currentSection?.title ?? 'Untitled section'}</span>
+                  <span>{state.currentSectionId ?? '—'}</span>
+                </>
+              )}
             </div>
 
-            <h2>{currentSection.title ?? 'Story Section'}</h2>
-            <p className="story-text">{currentSection.text}</p>
+            {state.phase === 'intro' && currentIntroStep ? (
+              <>
+                <h2>{currentIntroStep.title}</h2>
+                <div className="story-text">
+                  {currentIntroStep.paragraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
 
-            <div className="choice-list">
-              {availableChoices.map((choice) => (
-                <button
-                  key={choice.id}
-                  type="button"
-                  className="choice-card"
-                  onClick={() => handleChoice(choice.id)}
-                >
-                  <span className="choice-text">{choice.text}</span>
-                  <span className="choice-arrow">Continue</span>
-                </button>
-              ))}
+                {currentIntroStep.kind === 'skill_selection' ? (
+                  <section className="intro-selection">
+                    <div className="selection-meta">
+                      <span>{state.selectedSkills.length} / {currentIntroStep.requiredSelections} selected</span>
+                      <span>Choose carefully</span>
+                    </div>
+                    <div className="skill-grid">
+                      {currentIntroStep.options.map((option) => {
+                        const selected = state.selectedSkills.includes(option.id);
 
-              {availableChoices.length === 0 ? (
-                <div className="empty-state">No available choices in this section.</div>
-              ) : null}
-            </div>
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            className={`skill-card${selected ? ' is-selected' : ''}`}
+                            onClick={() => handleIntroSkillToggle(option.id)}
+                          >
+                            <span className="skill-card-title">{option.label}</span>
+                            <span className="skill-card-copy">{option.description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className="button button-primary intro-button"
+                      onClick={handleIntroContinue}
+                      disabled={state.selectedSkills.length < currentIntroStep.requiredSelections}
+                    >
+                      {currentIntroStep.continueLabel ?? 'Continue'}
+                    </button>
+                  </section>
+                ) : (
+                  <button type="button" className="button button-primary intro-button" onClick={handleIntroContinue}>
+                    {currentIntroStep.continueLabel ?? 'Continue'}
+                  </button>
+                )}
+              </>
+            ) : null}
+
+            {state.phase === 'playing' && currentSection ? (
+              <>
+                <h2>{currentSection.title ?? 'Story Section'}</h2>
+                <div className="story-text">
+                  {currentSection.text.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+
+                {activeCombat ? (
+                  <section className="combat-card">
+                    <h3>Combat</h3>
+                    <p>
+                      {activeCombat.event.enemy.name} blocks your path. Resolve the fight to continue.
+                    </p>
+                    <dl className="stats-grid">
+                      <div>
+                        <dt>Enemy CS</dt>
+                        <dd>{activeCombat.event.enemy.baseStats.combatSkill}</dd>
+                      </div>
+                      <div>
+                        <dt>Enemy EN</dt>
+                        <dd>{activeCombat.enemyEndurance}</dd>
+                      </div>
+                      <div>
+                        <dt>Victory</dt>
+                        <dd>{String(activeCombat.event.victoryTarget)}</dd>
+                      </div>
+                      <div>
+                        <dt>Defeat</dt>
+                        <dd>{String(activeCombat.event.defeatTarget)}</dd>
+                      </div>
+                    </dl>
+                    <button type="button" className="button button-primary combat-button" onClick={handleResolveCombat}>
+                      Resolve Combat
+                    </button>
+                    <button type="button" className="button button-secondary combat-button" onClick={handleStepCombat}>
+                      Step Combat
+                    </button>
+                    {activeCombat.history.length > 0 ? (
+                      <div className="combat-history">
+                        <h4>History</h4>
+                        <ol>
+                          {activeCombat.history.map((r) => (
+                            <li key={r.round}>
+                              Round {r.round}: P-roll {r.playerRoll} vs E-roll {r.enemyRoll} — P dmg {r.playerDamage} / E dmg {r.enemyDamage} (P: {r.playerEnduranceAfter}, E: {r.enemyEnduranceAfter})
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {!activeCombat ? (
+                  <div className="choice-list">
+                    {availableChoices.map((choice) => {
+                      const choiceId = choice.id ?? choice.text;
+
+                      return (
+                        <button
+                          key={choiceId}
+                          type="button"
+                          className="choice-card"
+                          onClick={() => handleChoice(choiceId)}
+                        >
+                          <span className="choice-text">{choice.text}</span>
+                          <span className="choice-arrow">Continue</span>
+                        </button>
+                      );
+                    })}
+
+                    {availableChoices.length === 0 ? (
+                      <div className="empty-state">No available choices in this section.</div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </article>
 
           <aside className="sidebar">
@@ -124,8 +318,14 @@ export default function App() {
               <h3>Player</h3>
               <dl className="stats-grid">
                 <div>
-                  <dt>Health</dt>
-                  <dd>{state.player.health} / {state.player.maxHealth}</dd>
+                  <dt>Phase</dt>
+                  <dd>{state.phase}</dd>
+                </div>
+                <div>
+                  <dt>Endurance</dt>
+                  <dd>
+                    {(activeCombat ? (state.player.currentEndurance ?? state.player.endurance) : state.player.endurance)} / {state.player.maxEndurance}
+                  </dd>
                 </div>
                 <div>
                   <dt>Combat Skill</dt>
@@ -134,10 +334,6 @@ export default function App() {
                 <div>
                   <dt>Gold</dt>
                   <dd>{state.player.gold}</dd>
-                </div>
-                <div>
-                  <dt>Section</dt>
-                  <dd>{state.visitedSectionIds.length}</dd>
                 </div>
               </dl>
             </section>

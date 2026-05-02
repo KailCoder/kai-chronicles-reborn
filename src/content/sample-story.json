@@ -1,72 +1,114 @@
 {
-  "startSectionId": "intro",
+  "startSectionId": 1,
   "sections": {
-    "intro": {
-      "id": "intro",
-      "title": "The Road",
-      "text": "You wake at the edge of the wilds with a small pack and a long road ahead.",
-      "onEnterEffects": [
-        { "type": "addItem", "itemId": "torch" },
-        { "type": "changeGold", "amount": 3 }
+    "1": {
+      "id": 1,
+      "title": "Escape",
+      "text": [
+        "The monastery burns.",
+        "You hear screams in the distance."
+      ],
+      "effects": [
+        { "type": "damage", "amount": 2 },
+        { "type": "add_item", "item": "torch" },
+        { "type": "add_gold", "amount": 3 }
       ],
       "choices": [
         {
-          "id": "enter-forest",
-          "text": "Take the forest path",
-          "targetSectionId": "forest"
+          "id": "forest",
+          "text": "Run to the forest",
+          "target": 15
         },
         {
-          "id": "visit-shrine",
-          "text": "Visit the old shrine",
-          "targetSectionId": "shrine",
-          "conditions": [{ "type": "hasItem", "itemId": "torch" }]
+          "id": "storage",
+          "text": "Enter the storage room",
+          "target": 27,
+          "requirements": [{ "type": "skill", "value": "Sixth Sense" }]
         }
       ]
     },
-    "forest": {
-      "id": "forest",
-      "title": "The Forest",
-      "text": "The trees close around you. Something moves in the undergrowth.",
-      "onEnterEffects": [{ "type": "changeHealth", "amount": -1 }],
-      "choices": [
+    "15": {
+      "id": 15,
+      "title": "Forest Edge",
+      "text": [
+        "Smoke follows you through the trees.",
+        "A Giak blocks the path."
+      ],
+      "events": [
         {
-          "id": "press-on",
-          "text": "Press deeper into the woods",
-          "targetSectionId": "clearing"
-        },
-        {
-          "id": "retreat",
-          "text": "Return to the road",
-          "targetSectionId": "intro"
-        }
-      ]
-    },
-    "shrine": {
-      "id": "shrine",
-      "title": "The Shrine",
-      "text": "A cracked altar stands in silence. A simple blessing awaits those who know how to ask.",
-      "choices": [
-        {
-          "id": "pray",
-          "text": "Pray at the altar",
-          "targetSectionId": "forest",
-          "effects": [
-            { "type": "changeHealth", "amount": 2 },
-            { "type": "setFlag", "flag": "blessed", "value": true }
+          "type": "combat",
+          "enemy": {
+            "name": "Giak",
+            "combatSkill": 15,
+            "endurance": 12
+          },
+          "victoryTarget": 88,
+          "defeatTarget": 350,
+          "rewardEffects": [
+            { "type": "add_gold", "amount": 2 },
+            { "type": "set_flag", "key": "cleared-giak", "value": true }
           ]
         }
-      ]
-    },
-    "clearing": {
-      "id": "clearing",
-      "title": "Hidden Clearing",
-      "text": "You find a quiet clearing and a path onward.",
+      ],
       "choices": [
         {
-          "id": "rest",
-          "text": "Rest briefly",
-          "targetSectionId": "intro",
-          "effects": [{ "type": "changeHealth", "amount": 1 }]
+          "id": "advance",
+          "text": "Advance cautiously",
+          "target": 88
+        },
+        {
+          "id": "fallback",
+          "text": "Fall back to the road",
+          "target": 1
+        }
+      ]
+    },
+    "27": {
+      "id": 27,
+      "title": "Storage Room",
+      "text": [
+        "You slip into the dark storage room.",
+        "A bundle of supplies rests under a sheet."
+      ],
+      "effects": [
+        { "type": "add_item", "item": "meal" },
+        { "type": "heal", "amount": 1 }
+      ],
+      "choices": [
+        {
+          "id": "return",
+          "text": "Return to the hall",
+          "target": 15
+        }
+      ]
+    },
+    "88": {
+      "id": 88,
+      "title": "Outside Walls",
+      "text": [
+        "The trees open into cold air.",
+        "For now, you are free."
+      ],
+      "choices": [
+        {
+          "id": "restart",
+          "text": "Start over",
+          "target": 1
+        }
+      ]
+    },
+    "350": {
+      "id": 350,
+      "title": "Defeat",
+      "text": [
+        "You fall to the ground as the world fades.",
+        "The story ends here for now."
+      ],
+      "choices": [
+        {
+          "id": "retry",
+          "text": "Try again",
+          "target": 1
         }
       ]
     }

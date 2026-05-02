@@ -159,6 +159,19 @@ button {
   padding: 1.5rem;
 }
 
+.phase-panel {
+  animation: phaseFade 240ms ease;
+}
+
+.phase-panel-intro {
+  border-color: rgba(242, 184, 114, 0.18);
+  background: linear-gradient(180deg, rgba(18, 16, 28, 0.82), rgba(10, 14, 25, 0.72));
+}
+
+.phase-panel-playing {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .story-meta {
   display: flex;
   justify-content: space-between;
@@ -221,6 +234,89 @@ button {
   font-size: 0.86rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.intro-selection {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.selection-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #ccbfa5;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.skill-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f7f3ed;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.skill-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(242, 184, 114, 0.34);
+  background: rgba(242, 184, 114, 0.12);
+}
+
+.skill-card.is-selected {
+  border-color: rgba(242, 184, 114, 0.56);
+  background: rgba(242, 184, 114, 0.18);
+}
+
+.skill-card-title {
+  font-weight: 700;
+}
+
+.skill-card-copy {
+  color: rgba(244, 239, 230, 0.75);
+  font-size: 0.93rem;
+}
+
+.intro-button {
+  justify-self: start;
+}
+
+.intro-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button:disabled {
+  box-shadow: none;
+}
+
+@keyframes phaseFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .empty-state {
@@ -325,6 +421,10 @@ button {
   .story-panel,
   .sidebar {
     border-radius: 20px;
+  }
+
+  .skill-grid {
+    grid-template-columns: 1fr;
   }
 
   .choice-card {

@@ -1,25 +1,27 @@
-import type { GameState } from './types';
+import type { SessionState } from './flow';
 
 export interface SaveFile {
   version: number;
   savedAt: string;
-  state: GameState;
+  storyId?: string;
+  state: SessionState;
 }
 
 const SAVE_KEY = 'kai-chronicles-reborn.save.v1';
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 3;
 
-export function saveGameState(state: GameState): void {
+export function saveGameState(state: SessionState, storyId?: string): void {
   const saveFile: SaveFile = {
     version: SAVE_VERSION,
     savedAt: new Date().toISOString(),
+    storyId,
     state,
   };
 
   localStorage.setItem(SAVE_KEY, JSON.stringify(saveFile));
 }
 
-export function loadGameState(): SaveFile | null {
+export function loadGameState(expectedStoryId?: string): SaveFile | null {
   const rawSave = localStorage.getItem(SAVE_KEY);
 
   if (!rawSave) {
@@ -30,6 +32,10 @@ export function loadGameState(): SaveFile | null {
     const parsed = JSON.parse(rawSave) as Partial<SaveFile>;
 
     if (parsed.version !== SAVE_VERSION || !parsed.state) {
+      return null;
+    }
+
+    if (expectedStoryId && parsed.storyId !== expectedStoryId) {
       return null;
     }
 

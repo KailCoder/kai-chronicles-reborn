@@ -1,16 +1,17 @@
 import {
   Choice,
   ChoiceResult,
-  Condition,
   Effect,
   EnterSectionResult,
   GameState,
   PlayerState,
+  SectionId,
   Section,
+  Requirement,
   Story,
 } from './types';
 
-export function createInitialState(startSectionId: string, player: PlayerState): GameState {
+export function createInitialState(startSectionId: SectionId, player: PlayerState): GameState {
   return {
     currentSectionId: startSectionId,
     player: {
@@ -20,11 +21,12 @@ export function createInitialState(startSectionId: string, player: PlayerState):
       flags: { ...player.flags },
     },
     visitedSectionIds: [],
+    activeCombat: null,
   };
 }
 
-export function getSection(story: Story, sectionId: string): Section {
-  const section = story.sections[sectionId];
+export function getSection(story: Story, sectionId: SectionId): Section {
+  const section = story.sections[String(sectionId)];
 
   if (!section) {
     throw new Error(`Unknown section: ${sectionId}`);
@@ -38,33 +40,40 @@ export function applyEffects(state: GameState, effects: Effect[] = []): GameStat
 
   for (const effect of effects) {
     switch (effect.type) {
-      case 'changeHealth':
-        nextPlayer.health = clamp(nextPlayer.health + effect.amount, 0, nextPlayer.maxHealth);
+      case 'damage':
+        nextPlayer.endurance = clamp(nextPlayer.endurance - effect.amount, 0, nextPlayer.maxEndurance);
         break;
-      case 'setHealth':
-        nextPlayer.health = clamp(effect.value, 0, nextPlayer.maxHealth);
+      case 'heal':
+        nextPlayer.endurance = clamp(nextPlayer.endurance + effect.amount, 0, nextPlayer.maxEndurance);
         break;
-      case 'changeGold':
+      case 'add_item':
+        if (!nextPlayer.inventory.includes(effect.item)) {
+          nextPlayer.inventory = [...nextPlayer.inventory, effect.item];
+        }
+        break;
+      case 'remove_item':
+        nextPlayer.inventory = nextPlayer.inventory.filter((itemId) => itemId !== effect.item);
+        break;
+      case 'add_gold':
         nextPlayer.gold = Math.max(0, nextPlayer.gold + effect.amount);
         break;
-      case 'addItem':
-        if (!nextPlayer.inventory.includes(effect.itemId)) {
-          nextPlayer.inventory = [...nextPlayer.inventory, effect.itemId];
+      case 'remove_gold':
+        nextPlayer.gold = Math.max(0, nextPlayer.gold - effect.amount);
+        break;
+      case 'set_stat':
+        if (effect.stat === 'combatSkill') {
+          nextPlayer.combatSkill = effect.value;
+        } else if (effect.stat === 'endurance') {
+          nextPlayer.endurance = clamp(effect.value, 0, nextPlayer.maxEndurance);
+        } else if (effect.stat === 'gold') {
+          nextPlayer.gold = Math.max(0, effect.value);
         }
         break;
-      case 'removeItem':
-        nextPlayer.inventory = nextPlayer.inventory.filter((itemId) => itemId !== effect.itemId);
+      case 'set_flag':
+        nextPlayer.flags = { ...nextPlayer.flags, [effect.key]: effect.value };
         break;
-      case 'addSkill':
-        if (!nextPlayer.skills.includes(effect.skillId)) {
-          nextPlayer.skills = [...nextPlayer.skills, effect.skillId];
-        }
-        break;
-      case 'setFlag':
-        nextPlayer.flags = { ...nextPlayer.flags, [effect.flag]: effect.value };
-        break;
-      case 'clearFlag': {
-        const { [effect.flag]: _removedFlag, ...remainingFlags } = nextPlayer.flags;
+      case 'clear_flag': {
+        const { [effect.key]: _removedFlag, ...remainingFlags } = nextPlayer.flags;
         nextPlayer.flags = remainingFlags;
         break;
       }
@@ -77,21 +86,42 @@ export function applyEffects(state: GameState, effects: Effect[] = []): GameStat
 }
 
 export function canUseChoice(state: GameState, choice: Choice): boolean {
-  return (choice.conditions ?? []).every((condition) => matchesCondition(state, condition));
+  return (choice.requirements ?? []).every((requirement) => matchesRequirement(state, requirement));
 }
 
 export function getAvailableChoices(section: Section, state: GameState): Choice[] {
+  if (state.activeCombat) {
+    return [];
+  }
+
   return section.choices.filter((choice) => canUseChoice(state, choice));
 }
 
-export function enterSection(story: Story, state: GameState, sectionId: string): EnterSectionResult {
+export function enterSection(story: Story, state: GameState, sectionId: SectionId): EnterSectionResult {
   const section = getSection(story, sectionId);
-  const nextState = applyEffects(state, section.onEnterEffects);
+  const afterEffects = applyEffects(state, section.effects);
+  const nextState = {
+    ...afterEffects,
+    activeCombat: null,
+  };
+
+  const combatEvent = section.events?.find((event): event is Extract<(typeof section.events)[number], { type: 'combat' }> => event.type === 'combat');
+  const withCombat = combatEvent
+    ? {
+        ...nextState,
+        activeCombat: {
+          event: combatEvent,
+          enemyEndurance: combatEvent.enemy.baseStats.endurance,
+          round: 0,
+          history: [],
+        },
+      }
+    : nextState;
 
   return {
     section,
     state: {
-      ...nextState,
+      ...withCombat,
       currentSectionId: sectionId,
       visitedSectionIds: state.visitedSectionIds.includes(sectionId)
         ? state.visitedSectionIds
@@ -113,7 +143,7 @@ export function choose(story: Story, state: GameState, choiceId: string): Choice
   }
 
   const afterChoiceEffects = applyEffects(state, choice.effects);
-  const entered = enterSection(story, afterChoiceEffects, choice.targetSectionId);
+  const entered = enterSection(story, afterChoiceEffects, choice.target);
 
   return {
     choice,
@@ -127,18 +157,20 @@ export function startStory(story: Story, player: PlayerState): EnterSectionResul
   return enterSection(story, initialState, story.startSectionId);
 }
 
-function matchesCondition(state: GameState, condition: Condition): boolean {
-  switch (condition.type) {
-    case 'hasItem':
-      return state.player.inventory.includes(condition.itemId);
-    case 'hasSkill':
-      return state.player.skills.includes(condition.skillId);
-    case 'minGold':
-      return state.player.gold >= condition.amount;
-    case 'minHealth':
-      return state.player.health >= condition.amount;
-    case 'flagEquals':
-      return state.player.flags[condition.flag] === condition.value;
+function matchesRequirement(state: GameState, requirement: Requirement): boolean {
+  switch (requirement.type) {
+    case 'item':
+      return state.player.inventory.includes(requirement.value);
+    case 'skill':
+      return state.player.skills.includes(requirement.value);
+    case 'min_gold':
+      return state.player.gold >= requirement.value;
+    case 'min_stat':
+      return state.player[requirement.stat] >= requirement.value;
+    case 'flag':
+      return requirement.value === undefined
+        ? Boolean(state.player.flags[requirement.key])
+        : state.player.flags[requirement.key] === requirement.value;
     default:
       return false;
   }
